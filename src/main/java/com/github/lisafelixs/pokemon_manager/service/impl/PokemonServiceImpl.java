@@ -1,5 +1,6 @@
 package com.github.lisafelixs.pokemon_manager.service.impl;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -7,9 +8,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.JdkSerializationRedisSerializer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +29,11 @@ public class PokemonServiceImpl implements PokemonService {
     @Autowired
     private FavoriteRepository favoriteRepository;
 
-    private final CacheManager cacheManager;
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
     private final PokemonApiRestClient pokemonApiRestClient;
 
-    public PokemonServiceImpl(PokemonApiRestClient pokemonRestClient, CacheManager cacheManager) {
-        this.cacheManager = cacheManager;
+    public PokemonServiceImpl(PokemonApiRestClient pokemonRestClient) {
         this.pokemonApiRestClient = pokemonRestClient;
     }
 
@@ -63,33 +65,33 @@ public class PokemonServiceImpl implements PokemonService {
         return responseList;
     }
 
- 
     @Override
     @Transactional
     public void saveFavorite(FavoritePokemonRequest favoritePokemonRequest) {
-        //TODO: tratar exception
+        // TODO: tratar exception
 
         List<Integer> pokemonIds = favoritePokemonRequest.getPokemonIds();
-        
-        Cache allPokemonCache = cacheManager.getCache("allPokemon");
         List<PokemonListResponse> allPokemonList = null;
 
-        if(allPokemonCache != null) {
-            Cache.ValueWrapper valueWrapper = allPokemonCache.get("allPokemon");
-            if (valueWrapper != null) {
-                allPokemonList = (List<PokemonListResponse>) valueWrapper.get();
-            } 
+        String key = "allPokemon::SimpleKey [null]";
+        byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+
+        byte[] valueBytes = redisTemplate.execute((RedisConnection connection) -> connection.get(keyBytes));
+
+        if (valueBytes != null) {
+            JdkSerializationRedisSerializer serializer = new JdkSerializationRedisSerializer();
+            allPokemonList = (List<PokemonListResponse>) serializer.deserialize(valueBytes);
         } else {
             allPokemonList = getAll(null);
         }
 
         if (allPokemonList != null && pokemonIds != null) {
-            for (Integer pokemonId : pokemonIds) {
+            for (int pokemonId : pokemonIds) {
                 Optional<PokemonListResponse> foundPokemon = allPokemonList.stream()
-                    .filter(pokemon -> pokemon.getId() == pokemonId)
-                    .findFirst();
+                        .filter(pokemon -> pokemon.getId() == pokemonId)
+                        .findFirst();
                 if (foundPokemon.isPresent()) {
-                    if(!favoriteRepository.existsById(pokemonId)) {
+                    if (!favoriteRepository.existsById(pokemonId)) {
                         String namePokemon = foundPokemon.get().getName();
                         Favorite favorite = new Favorite();
                         favorite.setId(pokemonId);

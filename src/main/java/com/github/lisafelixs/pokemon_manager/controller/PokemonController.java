@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -35,8 +36,8 @@ public class PokemonController {
     }
 
 
-    @PostMapping(path = "/favorites")
-    public ResponseEntity<Void> saveFavoritePokemon(FavoritePokemonRequest favoritePokemonRequest) {
+    @PostMapping(path = "/favorites",consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Void> saveFavoritePokemon(@RequestBody FavoritePokemonRequest favoritePokemonRequest) {
         pokemonService.saveFavorite(favoritePokemonRequest);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
