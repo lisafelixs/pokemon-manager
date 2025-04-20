@@ -2,6 +2,7 @@ package com.github.lisafelixs.pokemon_manager.controller;
 
 
 import com.github.lisafelixs.pokemon_manager.dto.FavoritePokemonRequest;
+import com.github.lisafelixs.pokemon_manager.dto.PokemonDetailsListResponse;
 import com.github.lisafelixs.pokemon_manager.dto.PokemonListResponse;
 import com.github.lisafelixs.pokemon_manager.service.PokemonService;
 
@@ -44,10 +45,8 @@ public class PokemonController {
 
 
     @GetMapping(path = "/details",produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> getFavoritesPokemonDetails(@RequestParam(value = "order", required = false) String order) {
-        //TODO: process GET details
-
-        return ResponseEntity.ok("XPTO");
+    public ResponseEntity<PokemonDetailsListResponse> getFavoritesPokemonDetails(@RequestParam(value = "order", required = false) String order) {
+        return ResponseEntity.ok(pokemonService.getFavorites(order));
     }
 
 

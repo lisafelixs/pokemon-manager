@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import com.github.lisafelixs.pokemon_manager.api.response.PokemonApiListResponseDTO;
+import com.github.lisafelixs.pokemon_manager.api.response.PokemonDTO;
 
 @Component
 public class PokemonApiRestClient {
@@ -23,10 +24,9 @@ public class PokemonApiRestClient {
         return restTemplate.getForObject(url, PokemonApiListResponseDTO.class);
     }
 
-    public PokemonApiListResponseDTO getDetails(int id){
-        //TODO : arrumar o responseDTO para receber o retorno correto
+    public PokemonDTO getDetails(int id){
         String url = baseUrl + "/pokemon/{id}";
-        return restTemplate.getForObject(url, PokemonApiListResponseDTO.class, id);
+        return restTemplate.getForObject(url, PokemonDTO.class, id);
     }
     
     

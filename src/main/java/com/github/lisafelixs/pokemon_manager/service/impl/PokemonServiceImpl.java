@@ -5,32 +5,42 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.JdkSerializationRedisSerializer;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.github.lisafelixs.pokemon_manager.api.client.PokemonApiRestClient;
 import com.github.lisafelixs.pokemon_manager.api.response.PokemonApiListResponseDTO;
+import com.github.lisafelixs.pokemon_manager.api.response.PokemonDTO;
 import com.github.lisafelixs.pokemon_manager.db.model.Favorite;
 import com.github.lisafelixs.pokemon_manager.db.repository.FavoriteRepository;
 import com.github.lisafelixs.pokemon_manager.dto.FavoritePokemonRequest;
+import com.github.lisafelixs.pokemon_manager.dto.PokemonDetails;
+import com.github.lisafelixs.pokemon_manager.dto.PokemonDetailsListResponse;
 import com.github.lisafelixs.pokemon_manager.dto.PokemonListResponse;
 import com.github.lisafelixs.pokemon_manager.service.PokemonService;
 
 @Service
 public class PokemonServiceImpl implements PokemonService {
 
+    @Value("${pokemonapi.list.url}")
+    private String URL;
+
     @Autowired
     private FavoriteRepository favoriteRepository;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+
     private final PokemonApiRestClient pokemonApiRestClient;
 
     public PokemonServiceImpl(PokemonApiRestClient pokemonRestClient) {
@@ -46,7 +56,7 @@ public class PokemonServiceImpl implements PokemonService {
         List<PokemonListResponse> responseList = new ArrayList<>();
 
         responseList = responseApi.getResults().stream().map(pokemon -> {
-            String url = pokemon.getUrl().replace("https://pokeapi.co/api/v2/pokemon/", "");
+            String url = pokemon.getUrl().replace(URL, "");
             if (url.endsWith("/")) {
                 url = url.substring(0, url.length() - 1);
             }
@@ -64,6 +74,7 @@ public class PokemonServiceImpl implements PokemonService {
 
         return responseList;
     }
+    
 
     @Override
     @Transactional
@@ -104,6 +115,7 @@ public class PokemonServiceImpl implements PokemonService {
 
     }
 
+
     @Override
     @Transactional
     public void deleteFavorite(int pokemonId) {
@@ -113,6 +125,51 @@ public class PokemonServiceImpl implements PokemonService {
         } else {
             // TODO: tratar exception
             throw new RuntimeException("Pokemon not found in favorites list.");
+        }
+    }
+    
+
+    @Override
+    public PokemonDetailsListResponse getFavorites(String order) {
+
+        List<Favorite> favorites = favoriteRepository.findAll();
+        List<CompletableFuture<PokemonDetails>> futures = new ArrayList<>();
+        
+
+        if (!favorites.isEmpty()) {
+            for (Favorite favorite : favorites) {
+                futures.add(fetchPokemonDetailsAsync(favorite.getId()));
+            }
+
+            List<PokemonDetails> details = futures.stream()
+                    .map(CompletableFuture::join) 
+                    .filter(pokemonDetails -> pokemonDetails != null)
+                    .collect(Collectors.toList());
+
+            PokemonDetailsListResponse pokemonDetailsListResponse = PokemonDetailsListResponse.builder()
+                    .results(details)
+                    .build();
+
+            return pokemonDetailsListResponse;
+
+        } else {
+            // TODO: tratar exception
+            throw new RuntimeException("Pokemon not found in favorites list.");
+        }
+    }
+
+    @Async
+    public CompletableFuture<PokemonDetails> fetchPokemonDetailsAsync(Integer pokemonId) {
+        PokemonDTO pokemonDetails = pokemonApiRestClient.getDetails(pokemonId);
+        if (pokemonDetails != null) {
+            PokemonDetails detail = PokemonDetails.builder()
+                    .name(pokemonDetails.getName())
+                    .abilities(pokemonDetails.getAbilities())
+                    .types(pokemonDetails.getTypes())
+                    .build();
+            return CompletableFuture.completedFuture(detail);
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 
