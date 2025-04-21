@@ -57,9 +57,7 @@ public class PokemonController {
     public ResponseEntity<Void> deleteFavorite(@PathVariable int pokemonId) {
         pokemonService.deleteFavorite(pokemonId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-    }
-    
-    
+    }      
     
 
 }

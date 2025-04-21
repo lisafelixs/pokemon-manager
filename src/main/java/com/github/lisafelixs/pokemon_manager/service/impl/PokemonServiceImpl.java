@@ -43,6 +43,7 @@ public class PokemonServiceImpl implements PokemonService {
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
 
+    @Autowired
     private final PokemonApiRestClient pokemonApiRestClient;
 
     public PokemonServiceImpl(PokemonApiRestClient pokemonRestClient) {
