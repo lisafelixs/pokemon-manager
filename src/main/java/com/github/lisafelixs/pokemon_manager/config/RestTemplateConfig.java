@@ -1,4 +1,4 @@
-package com.github.lisafelixs.pokemon_manager.api.config;
+package com.github.lisafelixs.pokemon_manager.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

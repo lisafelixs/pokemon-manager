@@ -3,10 +3,9 @@ package com.github.lisafelixs.pokemon_manager.controller;
 
 import com.github.lisafelixs.pokemon_manager.dto.FavoritePokemonRequest;
 import com.github.lisafelixs.pokemon_manager.dto.PokemonDetailsListResponse;
-import com.github.lisafelixs.pokemon_manager.dto.PokemonListResponse;
+import com.github.lisafelixs.pokemon_manager.dto.PokemonResponse;
 import com.github.lisafelixs.pokemon_manager.service.PokemonService;
 
-import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -32,8 +31,11 @@ public class PokemonController {
     PokemonService pokemonService;
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<PokemonListResponse>> getAllPokemon(@RequestParam(value = "order", required = false) String order) {
-        return ResponseEntity.ok(pokemonService.getAll(order));
+    public ResponseEntity<PokemonResponse> getAllPokemon(@RequestParam(value = "order", required = false) String order) {
+        PokemonResponse pokemonResponse = PokemonResponse.builder()
+                .result(pokemonService.getAll(order))
+                .build();
+        return ResponseEntity.ok(pokemonResponse);
     }
 
 

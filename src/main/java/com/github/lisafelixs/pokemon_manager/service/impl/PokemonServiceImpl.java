@@ -27,6 +27,8 @@ import com.github.lisafelixs.pokemon_manager.dto.FavoritePokemonRequest;
 import com.github.lisafelixs.pokemon_manager.dto.PokemonDetails;
 import com.github.lisafelixs.pokemon_manager.dto.PokemonDetailsListResponse;
 import com.github.lisafelixs.pokemon_manager.dto.PokemonListResponse;
+import com.github.lisafelixs.pokemon_manager.exception.PokeApiConnectionException;
+import com.github.lisafelixs.pokemon_manager.exception.PokemonNotFoundException;
 import com.github.lisafelixs.pokemon_manager.service.PokemonService;
 
 @Service
@@ -74,12 +76,10 @@ public class PokemonServiceImpl implements PokemonService {
 
         return responseList;
     }
-    
 
     @Override
     @Transactional
     public void saveFavorite(FavoritePokemonRequest favoritePokemonRequest) {
-        // TODO: tratar exception
 
         List<Integer> pokemonIds = favoritePokemonRequest.getPokemonIds();
         List<PokemonListResponse> allPokemonList = null;
@@ -109,12 +109,11 @@ public class PokemonServiceImpl implements PokemonService {
                         favorite.setName(namePokemon);
                         favoriteRepository.save(favorite);
                     }
-                }
+                } 
             }
         }
 
     }
-
 
     @Override
     @Transactional
@@ -123,18 +122,15 @@ public class PokemonServiceImpl implements PokemonService {
         if (favoriteRepository.existsById(pokemonId)) {
             favoriteRepository.deleteById(pokemonId);
         } else {
-            // TODO: tratar exception
-            throw new RuntimeException("Pokemon not found in favorites list.");
+            throw new PokemonNotFoundException("Pokémon não encontrado na lista de favoritos.");
         }
     }
-    
 
     @Override
     public PokemonDetailsListResponse getFavorites(String order) {
 
         List<Favorite> favorites = favoriteRepository.findAll();
         List<CompletableFuture<PokemonDetails>> futures = new ArrayList<>();
-        
 
         if (!favorites.isEmpty()) {
             for (Favorite favorite : favorites) {
@@ -142,9 +138,17 @@ public class PokemonServiceImpl implements PokemonService {
             }
 
             List<PokemonDetails> details = futures.stream()
-                    .map(CompletableFuture::join) 
+                    .map(CompletableFuture::join)
                     .filter(pokemonDetails -> pokemonDetails != null)
                     .collect(Collectors.toList());
+
+            if (order != null && !order.isEmpty()) {
+                if (order.equalsIgnoreCase("desc")) {
+                    details.sort(Comparator.comparing(PokemonDetails::getName).reversed());
+                } else {
+                    details.sort(Comparator.comparing(PokemonDetails::getName));
+                }
+            }
 
             PokemonDetailsListResponse pokemonDetailsListResponse = PokemonDetailsListResponse.builder()
                     .results(details)
@@ -153,24 +157,28 @@ public class PokemonServiceImpl implements PokemonService {
             return pokemonDetailsListResponse;
 
         } else {
-            // TODO: tratar exception
-            throw new RuntimeException("Pokemon not found in favorites list.");
+            throw new PokemonNotFoundException("Nenhum Pokémon encontrado na lista de favoritos.");
         }
     }
 
     @Async
     public CompletableFuture<PokemonDetails> fetchPokemonDetailsAsync(Integer pokemonId) {
-        PokemonDTO pokemonDetails = pokemonApiRestClient.getDetails(pokemonId);
-        if (pokemonDetails != null) {
-            PokemonDetails detail = PokemonDetails.builder()
-                    .name(pokemonDetails.getName())
-                    .abilities(pokemonDetails.getAbilities())
-                    .types(pokemonDetails.getTypes())
-                    .build();
-            return CompletableFuture.completedFuture(detail);
-        } else {
-            return CompletableFuture.completedFuture(null);
+        try {
+            PokemonDTO pokemonDetails = pokemonApiRestClient.getDetails(pokemonId);
+            if (pokemonDetails != null) {
+                PokemonDetails detail = PokemonDetails.builder()
+                        .name(pokemonDetails.getName())
+                        .abilities(pokemonDetails.getAbilities())
+                        .types(pokemonDetails.getTypes())
+                        .build();
+                return CompletableFuture.completedFuture(detail);
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        } catch (Exception e) {
+            throw new PokeApiConnectionException("Erro ao buscar detalhes do Pokémon com ID: " + pokemonId, e);
         }
+
     }
 
 }
